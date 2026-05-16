@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shop Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .filter-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .shop-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center my-4">Coffee Shop Finder</h1>
+        
+        <div class="filter-container">
+            <h4>Filters</h4>
+            <form id="search-form">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="city" class="form-label">City</label>
+                        <input type="text" id="city" class="form-control" placeholder="e.g., San Francisco">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="wifi" class="form-label">Wi-Fi Rating (1-5)</label>
+                        <input type="number" id="wifi" class="form-control" min="0" max="5" value="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="outlets" class="form-label">Outlets Rating (1-5)</label>
+                        <input type="number" id="outlets" class="form-control" min="0" max="5" value="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="coffee" class="form-label">Coffee Rating (1-5)</label>
+                        <input type="number" id="coffee" class="form-control" min="0" max="5" value="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="vibe" class="form-label">Vibe Rating (1-5)</label>
+                        <input type="number" id="vibe" class="form-control" min="0" max="5" value="0">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([37.7749, -122.4194], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        document.getElementById('search-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const city = document.getElementById('city').value;
+            const wifi = document.getElementById('wifi').value;
+            const outlets = document.getElementById('outlets').value;
+            const coffee = document.getElementById('coffee').value;
+            const vibe = document.getElementById('vibe').value;
+            
+            fetch(`/search?city=${city}&wifi=${wifi}&outlets=${outlets}&coffee=${coffee}&vibe=${vibe}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayResults(data);
+                    displayMap(data);
+                });
+        });
+
+        function displayResults(shops) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            if (shops.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-center">No coffee shops found. Try adjusting your filters.</p>';
+                return;
+            }
+            
+            shops.forEach(shop => {
+                const shopCard = document.createElement('div');
+                shopCard.className = 'shop-card';
+                shopCard.innerHTML = `
+                    <h4>${shop.name}</h4>
+                    <p><strong>Address:</strong> ${shop.address}, ${shop.city}</p>
+                    <p><strong>Wi-Fi:</strong> ${'★'.repeat(shop.wifi_rating)}</p>
+                    <p><strong>Outlets:</strong> ${'★'.repeat(shop.outlet_rating)}</p>
+                    <p><strong>Coffee:</strong> ${'★'.repeat(shop.coffee_rating)}</p>
+                    <p><strong>Vibe:</strong> ${'★'.repeat(shop.vibe_rating)}</p>
+                `;
+                resultsDiv.appendChild(shopCard);
+            });
+        }
+
+        function displayMap(shops) {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            shops.forEach(shop => {
+                const marker = L.marker([shop.latitude, shop.longitude]).addTo(map);
+                marker.bindPopup(`<b>${shop.name}</b><br>${shop.address}, ${shop.city}`);
+            });
+        }
+    </script>
+</body>
+</html>
